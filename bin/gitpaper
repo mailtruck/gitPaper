@@ -1,0 +1,130 @@
+#!/usr/bin/env ruby
+
+$:.unshift File.join(File.dirname(__FILE__), *%w[.. lib])
+
+require "optparse"
+require "rubygems"
+require "gitpaper"
+require "open-uri"
+require "yajl"
+
+help = <<HELP
+Real men don't need instructions.
+Run --auth with --user, --pass, --token, and --secret to get your token from Instapaper.
+Import bookmarks with --import.
+
+HELP
+
+options = {}
+
+opts = OptionParser.new do |opts|
+  opts.banner = help
+  
+  opts.on('--user [USERNAME]', "Instapaper username") do |user|
+    options[:username] = user
+  end
+  
+  opts.on('--pass [PASSWORD]', "Instapaper password(only used for authentication)") do |pass|
+    options[:password] = pass
+  end
+  
+  opts.on('--key [KEY]', "Instapaper OAuth consumer key") do |key|
+    options[:consumer_key] = key
+  end
+  
+  opts.on('--secret [SECRET]', "Instapaper OAuth consumer secret") do |secret|
+    options[:consumer_secret] = secret
+  end
+  
+  opts.on('--auth', "Get Oauth token from Instapaper") do
+    options[:authorize] = true
+  end
+  
+  opts.on('--import', "Imports bookmarks from Instapaper") do
+    options[:import] = true
+  end
+  
+  opts.on('--irb', "Loads IRB session") do
+    options[:irb] = true
+  end
+end
+
+begin
+  opts.parse!
+rescue OptionParser::InvalidOption
+  puts "gitPaper: #{$!.message}"
+  puts "gitPaper: try 'gitpaper --help' for more information"
+  exit
+end
+
+branch    = ARGV.shift
+m_path    = Dir.pwd # or ARGV.shift || Dir.pwd?
+gitpaper  = GitPaper::Repo.new(m_path)
+bookmarks = gitpaper.bookmarks(branch, options[:email])
+client    = GitPaper::OAuthClient.load(options)
+
+if !gitpaper.exist?
+  puts "Invalid GitPaper repo at #{File.expand_path(m_path).inspect}"
+  exit 0
+end
+
+if options[:irb]
+  require 'irb'
+  # http://jameskilton.com/2009/04/02/embedding-irb-into-your-ruby-application/
+  module IRB # :nodoc:
+    def self.start_session(binding)
+      unless @__initialized
+        args = ARGV
+        ARGV.replace(ARGV.dup)
+        IRB.setup(nil)
+        ARGV.replace(args)
+        @__initialized = true
+      end
+
+      ws  = WorkSpace.new(binding)
+      irb = Irb.new(ws)
+
+      @CONF[:IRB_RC].call(irb.context) if @CONF[:IRB_RC]
+      @CONF[:MAIN_CONTEXT] = irb.context
+
+      catch(:IRB_EXIT) do
+        irb.eval_input
+      end
+    end
+  end
+
+  IRB.start_session(binding)
+  
+elsif options[:authorize]
+  if options[:consumer_key].nil? || options[:consumer_secret].nil?
+    puts option_parser.help
+    exit 1
+  end
+  
+  client.get_access_token
+  client.save
+
+elsif options[:import]
+  
+  if !client.authorized? 
+    #authorize?
+    puts "Need an authorized account first"
+    exit 0
+  end
+  
+  puts "Importing from InstaPaper"
+  bms = []
+  url = "https://www.instapaper.com/api/1/bookmarks/list"
+  
+  response = client.post(url, :limit => 1)
+  response = Yajl::Parser.parse(response.body)
+  response.collect {|bm| bms.push(bm) if bm["type"] == "bookmark" }
+
+  puts "Importing #{bms.size} bookmarks"
+  #bms.reverse!
+  bms.each do |bookmark|
+    html = client.post('https://www.instapaper.com/api/1/bookmarks/get_text', :bookmark_id => bookmark["bookmark_id"])
+    bookmarks.post(bookmark, :html => html.body)
+  end
+  
+end

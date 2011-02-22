@@ -1,0 +1,12 @@
+GEM
+  remote: http://rubygems.org/
+  specs:
+    oauth (0.4.4)
+    yajl-ruby (0.8.1)
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  oauth
+  yajl-ruby
