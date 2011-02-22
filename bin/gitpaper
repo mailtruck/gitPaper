@@ -20,6 +20,10 @@ options = {}
 opts = OptionParser.new do |opts|
   opts.banner = help
   
+  opts.on('--auth', "Get Oauth token from Instapaper") do
+    options[:authorize] = true
+  end
+  
   opts.on('--user [USERNAME]', "Instapaper username") do |user|
     options[:username] = user
   end
@@ -36,12 +40,12 @@ opts = OptionParser.new do |opts|
     options[:consumer_secret] = secret
   end
   
-  opts.on('--auth', "Get Oauth token from Instapaper") do
-    options[:authorize] = true
-  end
-  
   opts.on('--import', "Imports bookmarks from Instapaper") do
     options[:import] = true
+  end
+  
+  opts.on('--limit [LIMIT]', "Limit of Instapaper bookmarks to import") do |limit|
+    options[:limit] = limit
   end
   
   opts.on('--irb', "Loads IRB session") do
@@ -107,16 +111,16 @@ elsif options[:authorize]
 elsif options[:import]
   
   if !client.authorized? 
-    #authorize?
     puts "Need an authorized account first"
     exit 0
   end
   
   puts "Importing from InstaPaper"
-  bms = []
-  url = "https://www.instapaper.com/api/1/bookmarks/list"
+  bms   = []
+  url   = "https://www.instapaper.com/api/1/bookmarks/list"
+  limit = options[:limit] || 25
   
-  response = client.post(url, :limit => 1)
+  response = client.post(url, limit)
   response = Yajl::Parser.parse(response.body)
   response.collect {|bm| bms.push(bm) if bm["type"] == "bookmark" }
 

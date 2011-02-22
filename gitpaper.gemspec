@@ -50,6 +50,7 @@ Gem::Specification.new do |s|
     Gemfile
     Gemfile.lock
     LICENSE
+    Rakefile
     bin/gitpaper
     gitpaper.gemspec
     lib/gitpaper.rb
