@@ -15,10 +15,6 @@ module GitPaper
       @grit.commit_index(msg)
     end
     
-    #def actor
-    #  Grit::Actor.new(@user, @email)
-    #end
-    
     def write_html(id, html)
       file = File.expand_path(File.join(@grit.path, '..', "#{id.to_s}.html"))
       File.open(file, 'w') {|file| file.write html }

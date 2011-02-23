@@ -120,7 +120,7 @@ elsif options[:import]
   url   = "https://www.instapaper.com/api/1/bookmarks/list"
   limit = options[:limit] || 25
   
-  response = client.post(url, limit)
+  response = client.post(url, :limit => limit)
   response = Yajl::Parser.parse(response.body)
   response.collect {|bm| bms.push(bm) if bm["type"] == "bookmark" }
 
